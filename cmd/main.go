@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"regexp"
 	"strconv"
 )
@@ -47,42 +46,67 @@ For instance: we have a NewTerm function that registers a term. It adds that ter
 Then there is a function called GetTermMetadata() that looks up the term in that map and returns its metadata.
 */
 
-type UnitRegexes struct {
+type UnitRegex struct {
 	Regex     *regexp.Regexp
 	Converter func(matches []string) (value, unit string)
 }
 
-var acceptedRegex []UnitRegex
+var HintedRegex map[string][]UnitRegex
 
-func RegisterUnixRegex(regex string, func(matches []string) (value, unit string)){
-	return value, unit
+// var acceptedRegex []UnitRegex
+
+func init() {
+	RegisterUnixRegex(`(?P<ft>[[:digit:]]+)\'(?P<in>[[:digit:]]+)\"`, ParseFeetInch, "[in_i]", "height", "length")
 }
+
+func RegisterUnixRegex(regex string, converter func(matches []string) (value, unit string),
+	unitName string, hints ...string) {
+}
+
 // compile regex
 // create instance of unitregex and append to slice
-// 
+//
 
-
-func ParseUnits(in string) (value, unit string) {
-	for _, regex := range acceptedRegex {
-		rx := regex.Regex
-		matches := rx.FindAllStringSubmatch(in, -1)
-		if len(matches) == 0 {
-			continue 
+func ParseUnits(in string, hint ...string) (value, unit string) {
+	for ht, hintRegex := range HintedRegex {
+		for idx, rx := range hintRegex {
+			// if there is no hint, potentially check every struct in the slice for a match
+			if len(hint) == 0 || hint[0] == "" {
+				matches := rx.Regex.FindAllStringSubmatch(in, -1)
+				if len(matches) == 0 {
+					continue
+				}
+				return rx.Converter(matches[0][1:])
+			} else {
+				// otherwise, if the provided hint matches a hint in the map
+				if hint[idx] == ht {
+					// list all potential matching regexes
+					matchingRegex := make([]string, 0, len(hintRegex))
+					matchingRegex = append(matchingRegex)
+				}
+			}
 		}
-		return regex.Converter(matches[1:])
 	}
-	//fmt.Println(value, unit)
-	return value, ""
+	// for _, regex := range acceptedRegex {
+	// 	rx := regex.Regex
+	// 	matches := rx.FindAllStringSubmatch(in, -1)
+	// 	if len(matches) == 0 {
+	// 		continue
+	// 	}
+	// 	return regex.Converter(matches[0][1:])
+	// }
+	// //fmt.Println(value, unit)
+	// return value, ""
 }
 
-func RegisterUnit(regex string, converter func()) {
-	re := regexp.MustCompile(regex)
-	u := UnitRegexes{Regex: re}
-	AcceptedRegex = append(AcceptedRegex, u)
-}
+// func RegisterUnit(regex string, converter func()) {
+// 	re := regexp.MustCompile(regex)
+// 	u := UnitRegexes{Regex: re}
+// 	AcceptedRegex = append(AcceptedRegex, u)
+// }
 
 func main() {
-	
+
 	ParseUnits(`5'4"`)
 	//fmt.Println(AcceptedRegex)
 }
@@ -90,7 +114,7 @@ func main() {
 // re := regexp.MustCompile(`(?P<ft>[[:digit:]]+)\'(?P<in>[[:digit:]]+)\"`)
 // r2 := re.FindAllStringSubmatch(`10'5"`, -1)[0]
 
-func ParseFeetInch(in []string) (value, unit string) {
+func ParseFeetInch(matches []string) (value, unit string) {
 	var sum int
 	const FOOT = 12
 	ft, _ := strconv.Atoi(matches[1])
@@ -102,7 +126,3 @@ func ParseFeetInch(in []string) (value, unit string) {
 }
 
 // `(?P<ft>[[:digit:]]+)\'(?P<in>[[:digit:]]+)\"`:
-
-func init() {
-	RegisterUnixRegex(`(?P<ft>[[:digit:]]+)\'(?P<in>[[:digit:]]+)\"`, ParseFeetInch)
-}
