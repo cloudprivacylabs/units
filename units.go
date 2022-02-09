@@ -2,7 +2,6 @@ package units
 
 import (
 	"regexp"
-	"strconv"
 	"strings"
 )
 
@@ -12,22 +11,18 @@ func (e ErrAmbiguousUnit) Error() string {
 	return "Ambiguous unit: " + strings.Join([]string(e), ", ")
 }
 
-type UnitRegex struct {
-	Regex     *regexp.Regexp
-	Converter func(matches []string) (value, unit string, err error)
-	UnitName  string
+type unitRegex struct {
+	regex     *regexp.Regexp
+	parseFunc func(matches []string) (value, unit string, err error)
+	unitName  string
 }
 
-var hintedRegex = make(map[string][]UnitRegex, 0)
+var hintedRegex = make(map[string][]unitRegex, 0)
 
-func init() {
-	RegisterUnixRegex(`(?P<ft>[[:digit:]]+)\'(?P<in>[[:digit:]]+)\"`, ParseFeetInch, "[in_i]", "height", "length")
-}
-
-func RegisterUnixRegex(regex string, converter func(matches []string) (value, unit string, err error),
+func RegisterUnixRegex(regex string, parseFunc func(matches []string) (value, unit string, err error),
 	unitName string, hints ...string) {
 	re := regexp.MustCompile(regex)
-	ur := UnitRegex{Regex: re, Converter: converter, UnitName: unitName}
+	ur := unitRegex{regex: re, parseFunc: parseFunc, unitName: unitName}
 	for _, hint := range hints {
 		hintedRegex[hint] = append(hintedRegex[hint], ur)
 	}
@@ -37,38 +32,30 @@ func RegisterUnixRegex(regex string, converter func(matches []string) (value, un
 func ParseUnits(in string, hint ...string) (value, unit string, err error) {
 	for _, ht := range hint {
 		for _, unitRegex := range hintedRegex[ht] {
-			matches := unitRegex.Regex.FindAllStringSubmatch(in, -1)
+			matches := unitRegex.regex.FindAllStringSubmatch(in, -1)
 			if len(matches) == 0 {
 				continue
 			}
-			value, unit, err = unitRegex.Converter(matches[0])
+			value, unit, err = unitRegex.parseFunc(matches[0])
 			return value, unit, err
 		}
 	}
-	var ambUnits ErrAmbiguousUnit
+	var ambUnits []string
 	if len(hint) == 0 {
 		for _, unitRegex := range hintedRegex[""] {
-			matches := unitRegex.Regex.FindAllStringSubmatch(in, -1)
+			matches := unitRegex.regex.FindAllStringSubmatch(in, -1)
 			if len(matches) == 0 {
 				continue
 			} else if len(matches) > 1 {
-
-				ambUnits = append(ambUnits, unitRegex.UnitName)
-
+				ambUnits = append(ambUnits, unitRegex.unitName)
 			} else {
-				value, unit, err = unitRegex.Converter(matches[0])
+				value, unit, err = unitRegex.parseFunc(matches[0])
 				return value, unit, err
 			}
 		}
 	}
-	return value, "", ambUnits
-}
-
-func ParseFeetInch(matches []string) (value, unit string, err error) {
-	var sum int
-	const FOOT = 12
-	ft, _ := strconv.Atoi(matches[1])
-	in, _ := strconv.Atoi(matches[2])
-	sum += (ft * FOOT) + in
-	return strconv.Itoa(sum), "[in_i]", nil
+	if len(ambUnits) > 1 {
+		return "", "", ErrAmbiguousUnit(ambUnits)
+	}
+	return value, "", nil
 }

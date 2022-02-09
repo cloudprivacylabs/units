@@ -8,15 +8,16 @@ import (
 )
 
 func main() {
-	var cfg config
-	flag.StringVar(&cfg.unit, "unit", "", "define unit")
-	flag.StringVar(&cfg.hint, "hint", "", "define hint")
+	var hint string
+	flag.StringVar(&hint, "hint", "", "Unit lookup hint, length, height, etc.")
 	flag.Parse()
-	x, y, z := units.ParseUnits(cfg.unit)
-	fmt.Println(x, y, z)
-}
-
-type config struct {
-	unit string
-	hint string
+	if len(flag.Args()) != 1 {
+		fmt.Println("Need one arg")
+		return
+	}
+	x, y, err := units.ParseUnits(flag.Args()[0], hint)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(x, y)
 }
