@@ -14,7 +14,7 @@ func (e ErrAmbiguousUnit) Error() string {
 
 type UnitRegex struct {
 	Regex     *regexp.Regexp
-	Converter func(matches []string) (value, unit string)
+	Converter func(matches []string) (value, unit string, err error)
 	UnitName  string
 }
 
@@ -24,7 +24,7 @@ func init() {
 	RegisterUnixRegex(`(?P<ft>[[:digit:]]+)\'(?P<in>[[:digit:]]+)\"`, ParseFeetInch, "[in_i]", "height", "length")
 }
 
-func RegisterUnixRegex(regex string, converter func(matches []string) (value, unit string),
+func RegisterUnixRegex(regex string, converter func(matches []string) (value, unit string, err error),
 	unitName string, hints ...string) {
 	re := regexp.MustCompile(regex)
 	ur := UnitRegex{Regex: re, Converter: converter, UnitName: unitName}
@@ -41,8 +41,8 @@ func ParseUnits(in string, hint ...string) (value, unit string, err error) {
 			if len(matches) == 0 {
 				continue
 			}
-			value, unit = unitRegex.Converter(matches[0])
-			return value, unit, nil
+			value, unit, err = unitRegex.Converter(matches[0])
+			return value, unit, err
 		}
 	}
 	var ambUnits ErrAmbiguousUnit
@@ -52,24 +52,23 @@ func ParseUnits(in string, hint ...string) (value, unit string, err error) {
 			if len(matches) == 0 {
 				continue
 			} else if len(matches) > 1 {
-				switch {
-				case unitRegex.Regex.String() == `(?P<ft>[[:digit:]]+)\'(?P<in>[[:digit:]]+)\"`:
-					ambUnits = append(ambUnits, unitRegex.UnitName)
-				}
+
+				ambUnits = append(ambUnits, unitRegex.UnitName)
+
 			} else {
-				value, unit = unitRegex.Converter(matches[0])
-				return value, unit, nil
+				value, unit, err = unitRegex.Converter(matches[0])
+				return value, unit, err
 			}
 		}
 	}
 	return value, "", ambUnits
 }
 
-func ParseFeetInch(matches []string) (value, unit string) {
+func ParseFeetInch(matches []string) (value, unit string, err error) {
 	var sum int
 	const FOOT = 12
 	ft, _ := strconv.Atoi(matches[1])
 	in, _ := strconv.Atoi(matches[2])
 	sum += (ft * FOOT) + in
-	return strconv.Itoa(sum), "[in_i]"
+	return strconv.Itoa(sum), "[in_i]", nil
 }
