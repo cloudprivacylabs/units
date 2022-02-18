@@ -3,21 +3,36 @@ package main
 import (
 	"flag"
 	"fmt"
-
-	"github.com/cloudprivacylabs/units"
+	"net/http"
 )
 
+type config struct {
+	port int
+}
+
+type application struct {
+	config config
+}
+
 func main() {
-	var hint string
-	flag.StringVar(&hint, "hint", "", "Unit lookup hint, length, height, etc.")
+	run()
+}
+
+func run() {
+	var cfg config
+	flag.IntVar(&cfg.port, "port", 8080, "Server port to listen on")
 	flag.Parse()
-	if len(flag.Args()) != 1 {
-		fmt.Println("Need one arg")
-		return
+	app := &application{
+		config: cfg,
 	}
-	x, y, err := units.ParseUnits(flag.Args()[0], hint)
+	srv := &http.Server{
+		Addr:    fmt.Sprintf(":%d", cfg.port),
+		Handler: app.routes(),
+	}
+	fmt.Println("Starting server on port", cfg.port)
+	err := srv.ListenAndServe()
 	if err != nil {
 		fmt.Println(err)
+
 	}
-	fmt.Println(x, y)
 }
