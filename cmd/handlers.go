@@ -7,24 +7,24 @@ import (
 	"github.com/cloudprivacylabs/units"
 )
 
-func (app *application) normalizeUnit(w http.ResponseWriter, r *http.Request) {
+func (app *application) normalizeMeasure(w http.ResponseWriter, r *http.Request) {
 	type input struct {
-		Value string `json:"unit"`
-		Hint  string `json:"hint"`
+		Value string `json:"value"`
+		Unit  string `json:"unit"`
 	}
-	v, h, err := app.readFromParams(r)
+	v, hint, err := app.readFromParams(r)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	value, hint, err := units.ParseUnits(v, h)
+	value, unit, err := units.ParseUnits(v, hint)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 	conversion := input{
 		Value: value,
-		Hint:  hint,
+		Unit:  unit,
 	}
 	if err = app.writeJSON(w, http.StatusOK, conversion); err != nil {
 		fmt.Println(err)

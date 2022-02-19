@@ -11,6 +11,6 @@ GET /unit?value=1.2&unit=m&targetUnit=cm
 
 func (app *application) routes() http.Handler {
 	router := http.NewServeMux()
-	router.HandleFunc("/unit", app.normalizeUnit)
+	router.HandleFunc("/unit", app.normalizeMeasure)
 	return app.enableCORS(router)
 }

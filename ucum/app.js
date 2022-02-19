@@ -43,7 +43,7 @@ app.get("/validate", (req, res) => {
     res.json(ret);
     console.log(ret);
 })
-
+// curl "http://localhost:8080/convert?unit=g&value=100&output=kg"
 app.get("/convert", (req, res) => {
     // handle UCUM convert function
 

@@ -15,6 +15,17 @@ type application struct {
 }
 
 func main() {
+	// var hint string
+	// var value string
+	// flag.StringVar(&hint, "hint", "", "Unit lookup hint, length, height, etc.")
+	// flag.StringVar(&value, "value", "", "value")
+	// flag.Parse()
+	// if len(flag.Args()) > 2 {
+	// 	errors.New("too many args")
+	// }
+	// fmt.Println(value, hint)
+	// x, y, _ := units.ParseUnits(value, hint)
+	// fmt.Println(x, y)
 	run()
 }
 
