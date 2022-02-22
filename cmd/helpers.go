@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-
-	"github.com/cloudprivacylabs/units"
 )
 
 // func (app *application) readFromFlags() (string, string, error) {
@@ -28,7 +26,7 @@ func (app *application) readFromParams(r *http.Request) (string, string, error) 
 	value := query.Get("value")
 	hint := query.Get("hint") // optional
 	fmt.Println("user input: "+value, hint)
-	fmt.Println(units.Normalize(`1.2mL`))
+	// fmt.Println(units.Normalize(`1.2mL`))
 	return value, hint, nil
 }
 
