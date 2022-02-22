@@ -31,7 +31,7 @@ func main() {
 
 func run() {
 	var cfg config
-	flag.IntVar(&cfg.port, "port", 8080, "Server port to listen on")
+	flag.IntVar(&cfg.port, "port", 8081, "Server port to listen on")
 	flag.Parse()
 	app := &application{
 		config: cfg,

@@ -26,6 +26,7 @@ func (app *application) readFromParams(r *http.Request) (string, string, error) 
 	value := query.Get("value")
 	hint := query.Get("hint") // optional
 	fmt.Println("user input: "+value, hint)
+	// fmt.Println(units.Convert("gg", "kg", 100))
 	return value, hint, nil
 }
 
