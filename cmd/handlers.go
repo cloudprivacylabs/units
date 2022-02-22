@@ -17,7 +17,12 @@ func (app *application) normalizeMeasure(w http.ResponseWriter, r *http.Request)
 		fmt.Println(err)
 		return
 	}
-	value, unit, err := units.ParseUnits(v, hint)
+	var value, unit string
+	if hint != "" {
+		value, unit, err = units.ParseUnits(v, hint)
+	} else {
+		value, unit, err = units.ParseUnits(v)
+	}
 	if err != nil {
 		fmt.Println(err)
 		return
