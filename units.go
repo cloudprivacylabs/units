@@ -1,6 +1,7 @@
 package units
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 )
@@ -27,6 +28,25 @@ func RegisterUnixRegex(regex string, parseFunc func(matches []string) (value, un
 		hintedRegex[hint] = append(hintedRegex[hint], ur)
 	}
 	hintedRegex[""] = append(hintedRegex[""], ur)
+}
+
+var unitRegexp = regexp.MustCompile(`^([+\-]?(?:(?:0|[1-9]\d*)(?:\.\d*)?|\.\d+)(?:\d[eE][+\-]?\d+)?)(?:(?:\s+(\S+.*))|([^\seE\d]+.*))$`)
+
+// parseMeasure parses a number and then a string for units
+func parseMeasure(in string) (string, string, error) {
+	values := make([]string, 0, 2)
+	for _, v := range unitRegexp.FindAllStringSubmatch(in, -1) {
+		for _, x := range v[1:] {
+			x := strings.TrimSpace(x)
+			if len(x) > 0 {
+				values = append(values, x)
+			}
+		}
+	}
+	if len(values) != 2 {
+		return "", "", fmt.Errorf("Input does not look like a value/unit pair: %s", in)
+	}
+	return values[0], values[1], nil
 }
 
 func ParseUnits(in string, hint ...string) (value, unit string, err error) {
@@ -56,6 +76,10 @@ func ParseUnits(in string, hint ...string) (value, unit string, err error) {
 	}
 	if len(ambUnits) > 1 {
 		return "", "", ErrAmbiguousUnit(ambUnits)
+	}
+	value, unit, err = parseMeasure(in)
+	if err == nil {
+		return
 	}
 	return value, "", nil
 }
