@@ -7,39 +7,43 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 
 	pluralize "github.com/gertd/go-pluralize"
 
 	"github.com/cloudprivacylabs/units"
 )
 
-func (app *application) validateUnit(unit string) (string, error) {
+type ucumValidationResponse struct {
+	Status string `json:"status"`
+	Code   string `json:"ucumCode"`
+	Unit   struct {
+		Code string `json:"code"`
+		Name string `json:"name"`
+	} `json:"unit"`
+	Msg []string `json:"msg"`
+}
+
+func (app *application) validateUnit(unit string) (ucumValidationResponse, error) {
 	q := url.Values{
 		"unit": []string{unit},
 	}
-	fmt.Println("Validate", q)
 	// call UCUM validate
 	resp, err := http.Get(app.ucumURL + "/validate?" + q.Encode())
 	if err != nil {
-		return "", err
+		return ucumValidationResponse{}, err
 	}
 	defer resp.Body.Close()
 	body, _ := ioutil.ReadAll(resp.Body)
 	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("Cannot validate unit %s: %s", unit, string(body))
+		return ucumValidationResponse{}, fmt.Errorf("Cannot validate unit %s: %s", unit, string(body))
 	}
-	var valid struct {
-		Status   string `json:"status"`
-		UcumCode string `json:"ucumCode"`
-	}
+	var valid ucumValidationResponse
 	err = json.Unmarshal(body, &valid)
 	if err != nil {
-		return "", err
+		return valid, err
 	}
-	if len(valid.UcumCode) > 0 {
-		return valid.UcumCode, nil
-	}
-	return "", nil
+	return valid, nil
 }
 
 func (app *application) normalizeMeasure(w http.ResponseWriter, r *http.Request) {
@@ -57,31 +61,56 @@ func (app *application) normalizeMeasure(w http.ResponseWriter, r *http.Request)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	ret := map[string]interface{}{
+		"value": value,
+		"unit":  unit,
+		"valid": false,
+	}
 
 	if len(unit) > 0 {
-		plu := pluralize.NewClient()
 		u, err := app.validateUnit(unit)
-		if err != nil || len(u) == 0 {
-			fmt.Println("Checking plural/singular", unit)
-			if plu.IsPlural(unit) {
-				u, err = app.validateUnit(plu.Singular(unit))
-			} else {
-				u, err = app.validateUnit(plu.Plural(unit))
-			}
-			if err == nil && len(u) > 0 {
-				unit = u
-			}
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if u.Status == "valid" {
+			ret["unit"] = u.Code
+			ret["valid"] = true
+		} else if u.Status == "invalid" && len(u.Code) > 0 {
+			ret["unit"] = u.Code
+			ret["valid"] = false
+			ret["msg"] = strings.Join(u.Msg, "/")
 		} else {
-			unit = u
+			plu := pluralize.NewClient()
+			var pluralizedRsp ucumValidationResponse
+			if plu.IsPlural(unit) {
+				pluralizedRsp, err = app.validateUnit(plu.Singular(unit))
+			} else {
+				pluralizedRsp, err = app.validateUnit(plu.Plural(unit))
+			}
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			if pluralizedRsp.Status == "valid" {
+				ret["unit"] = pluralizedRsp.Code
+				ret["valid"] = false
+				ret["msg"] = "Pluralization difference"
+			} else if pluralizedRsp.Status == "invalid" && len(pluralizedRsp.Code) > 0 {
+				ret["unit"] = pluralizedRsp.Code
+				ret["valid"] = false
+				ret["msg"] = strings.Join(u.Msg, "/")
+			} else {
+				ret["msg"] = strings.Join(u.Msg, "/")
+			}
 		}
 	}
 
-	app.writeJSON(w, http.StatusOK, map[string]interface{}{
-		"value": value, "unit": unit})
+	app.writeJSON(w, http.StatusOK, ret)
 }
 
 func (app *application) passthrough(w http.ResponseWriter, r *http.Request) {
-	rsp, err := http.Get(app.ucumURL + r.URL.Query().Encode())
+	rsp, err := http.Get(app.ucumURL + r.URL.Path + "?" + r.URL.Query().Encode())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
